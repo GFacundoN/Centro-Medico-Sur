@@ -1,4 +1,5 @@
 const Turno = require('../models/Turno');
+const Atencion = require('../models/Atencion');
 
 exports.getAll = async (req, res) => {
   try {
@@ -43,6 +44,17 @@ exports.getByPaciente = async (req, res) => {
   }
 };
 
+exports.getByProfesional = async (req, res) => {
+  try {
+    const { fecha } = req.query;
+    const turnos = await Turno.findByProfesional(req.params.profesionalId, fecha);
+    res.json(turnos);
+  } catch (error) {
+    console.error('Error al obtener turnos del profesional:', error);
+    res.status(500).json({ error: 'Error al obtener turnos del profesional' });
+  }
+};
+
 exports.create = async (req, res) => {
   try {
     const { id_agenda, id_paciente, descripcion, fecha_hora, duracion_min, estado } = req.body;
@@ -83,9 +95,23 @@ exports.update = async (req, res) => {
 
 exports.updateEstado = async (req, res) => {
   try {
-    const { estado } = req.body;
+    const { estado, diagnostico, tratamiento, notas } = req.body;
     
+    // Actualizar estado del turno
     const turno = await Turno.updateEstado(req.params.id, estado);
+    
+    // Si se marca como atendido y se proporcionan datos médicos, crear registro de atención
+    if (estado === 'atendido' && (diagnostico || tratamiento || notas)) {
+      await Atencion.create({
+        id_turno: req.params.id,
+        id_emergencia: null,
+        diagnostico,
+        tratamiento,
+        notas,
+        usuario_registro: req.usuario.id_usuario
+      });
+    }
+    
     res.json(turno);
   } catch (error) {
     console.error('Error al actualizar estado del turno:', error);

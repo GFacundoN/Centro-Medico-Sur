@@ -2,16 +2,22 @@ import { useState, useEffect } from 'react';
 import { AlertCircle, Plus } from 'lucide-react';
 import { emergenciaService } from '../services/emergenciaService';
 import { pacienteService } from '../services/pacienteService';
+import { profesionalService } from '../services/profesionalService';
+import { consultorioService } from '../services/consultorioService';
 import { useAuth } from '../context/AuthContext';
 
 function Emergencias() {
   const { user } = useAuth();
   const [emergencias, setEmergencias] = useState([]);
   const [pacientes, setPacientes] = useState([]);
+  const [profesionales, setProfesionales] = useState([]);
+  const [consultorios, setConsultorios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     id_paciente: '',
+    id_profesional: '',
+    id_consultorio: '',
     motivo: '',
     estado: 'activa'
   });
@@ -22,12 +28,25 @@ function Emergencias() {
 
   const loadData = async () => {
     try {
-      const [emergenciasData, pacientesData] = await Promise.all([
-        emergenciaService.getAll(),
-        pacienteService.getAll()
+      let emergenciasData;
+      
+      // Si es profesional, solo cargar sus emergencias
+      if (user?.rol === 'profesional' && user?.profesional?.id_profesional) {
+        emergenciasData = await emergenciaService.getByProfesional(user.profesional.id_profesional);
+      } else {
+        emergenciasData = await emergenciaService.getAll();
+      }
+      
+      const [pacientesData, profesionalesData, consultoriosData] = await Promise.all([
+        pacienteService.getAll(),
+        profesionalService.getAll(),
+        consultorioService.getAll()
       ]);
+      
       setEmergencias(emergenciasData);
       setPacientes(pacientesData);
+      setProfesionales(profesionalesData);
+      setConsultorios(consultoriosData);
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
@@ -49,6 +68,13 @@ function Emergencias() {
   };
 
   const handleEstadoChange = async (id, nuevoEstado) => {
+    // Confirmación para marcar como atendida
+    if (nuevoEstado === 'atendida') {
+      if (!window.confirm('¿Confirma que la emergencia ha sido atendida?')) {
+        return; // Cancelar el cambio
+      }
+    }
+
     try {
       await emergenciaService.updateEstado(id, nuevoEstado);
       loadData();
@@ -61,6 +87,8 @@ function Emergencias() {
   const resetForm = () => {
     setFormData({
       id_paciente: '',
+      id_profesional: '',
+      id_consultorio: '',
       motivo: '',
       estado: 'activa'
     });
@@ -76,7 +104,7 @@ function Emergencias() {
     return colors[estado] || 'bg-gray-100 text-gray-800';
   };
 
-  const canCreate = user?.rol === 'recepcion' || user?.rol === 'profesional' || user?.rol === 'admin';
+  const canCreate = user?.rol === 'recepcion' || user?.rol === 'admin';
 
   return (
     <div className="space-y-6">
@@ -183,32 +211,68 @@ function Emergencias() {
           <div className="bg-white rounded-lg max-w-2xl w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Nueva Emergencia</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Paciente *</label>
-                <select
-                  value={formData.id_paciente}
-                  onChange={(e) => setFormData({ ...formData, id_paciente: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                  required
-                >
-                  <option value="">Seleccionar paciente</option>
-                  {pacientes.map((paciente) => (
-                    <option key={paciente.id_paciente} value={paciente.id_paciente}>
-                      {paciente.nombre} {paciente.apellido} - DNI: {paciente.dni}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo *</label>
-                <textarea
-                  value={formData.motivo}
-                  onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-                  rows="4"
-                  placeholder="Describa el motivo de la emergencia..."
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paciente *</label>
+                  <select
+                    value={formData.id_paciente}
+                    onChange={(e) => setFormData({ ...formData, id_paciente: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccionar paciente</option>
+                    {pacientes.map((paciente) => (
+                      <option key={paciente.id_paciente} value={paciente.id_paciente}>
+                        {paciente.nombre} {paciente.apellido} - DNI: {paciente.dni}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profesional *</label>
+                  <select
+                    value={formData.id_profesional}
+                    onChange={(e) => setFormData({ ...formData, id_profesional: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccionar profesional</option>
+                    {profesionales.map((prof) => (
+                      <option key={prof.id_profesional} value={prof.id_profesional}>
+                        {prof.nombre} - {prof.especialidad}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sala de Emergencia *</label>
+                  <select
+                    value={formData.id_consultorio}
+                    onChange={(e) => setFormData({ ...formData, id_consultorio: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccionar sala</option>
+                    {consultorios
+                      .filter(c => c.sector_nombre === 'Emergencias')
+                      .map((consultorio) => (
+                        <option key={consultorio.id_consultorio} value={consultorio.id_consultorio}>
+                          {consultorio.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motivo *</label>
+                  <textarea
+                    value={formData.motivo}
+                    onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    rows="4"
+                    placeholder="Describa el motivo de la emergencia..."
+                    required
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button

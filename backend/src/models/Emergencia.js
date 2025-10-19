@@ -55,6 +55,25 @@ class Emergencia {
     return rows;
   }
 
+  static async findByProfesional(profesionalId) {
+    const [rows] = await db.query(
+      `SELECT e.*, 
+              p.nombre as paciente_nombre, p.apellido as paciente_apellido, p.dni as paciente_dni,
+              prof.especialidad,
+              u.nombre as profesional_nombre,
+              c.nombre as consultorio_nombre
+       FROM Emergencia e
+       JOIN Paciente p ON e.id_paciente = p.id_paciente
+       JOIN Profesional prof ON e.id_profesional = prof.id_profesional
+       JOIN Usuario u ON prof.id_usuario = u.id_usuario
+       LEFT JOIN Consultorio c ON e.id_consultorio = c.id_consultorio
+       WHERE prof.id_profesional = ?
+       ORDER BY e.fecha_hora DESC`,
+      [profesionalId]
+    );
+    return rows;
+  }
+
   static async create(emergenciaData) {
     const { id_paciente, id_profesional, id_consultorio, motivo, estado } = emergenciaData;
     

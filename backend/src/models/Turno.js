@@ -81,6 +81,34 @@ class Turno {
     return rows;
   }
 
+  static async findByProfesional(profesionalId, fecha = null) {
+    let query = `SELECT t.*, 
+              p.nombre as paciente_nombre, p.apellido as paciente_apellido, p.dni as paciente_dni,
+              a.fecha, a.hora_inicio, a.hora_fin,
+              prof.especialidad,
+              u.nombre as profesional_nombre,
+              c.nombre as consultorio_nombre
+       FROM Turno t
+       LEFT JOIN Paciente p ON t.id_paciente = p.id_paciente
+       JOIN Agenda a ON t.id_agenda = a.id_agenda
+       JOIN Profesional prof ON a.id_profesional = prof.id_profesional
+       JOIN Usuario u ON prof.id_usuario = u.id_usuario
+       JOIN Consultorio c ON a.id_consultorio = c.id_consultorio
+       WHERE prof.id_profesional = ?`;
+    
+    const params = [profesionalId];
+    
+    if (fecha) {
+      query += ' AND a.fecha = ?';
+      params.push(fecha);
+    }
+    
+    query += ' ORDER BY a.fecha DESC, t.fecha_hora';
+    
+    const [rows] = await db.query(query, params);
+    return rows;
+  }
+
   static async create(turnoData) {
     const { id_agenda, id_paciente, descripcion, fecha_hora, duracion_min, estado } = turnoData;
     

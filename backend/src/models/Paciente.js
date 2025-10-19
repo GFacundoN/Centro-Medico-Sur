@@ -63,12 +63,12 @@ class Paciente {
 
   static async getHistorial(id) {
     const [turnos] = await db.query(
-      `SELECT t.*, a.fecha, a.hora_inicio, p.nombre as profesional_nombre, p.especialidad,
+      `SELECT t.*, a.fecha, a.hora_inicio, u.nombre as profesional_nombre, prof.especialidad,
               c.nombre as consultorio_nombre, at.diagnostico, at.tratamiento, at.notas
        FROM Turno t
        JOIN Agenda a ON t.id_agenda = a.id_agenda
        JOIN Profesional prof ON a.id_profesional = prof.id_profesional
-       JOIN Usuario p ON prof.id_usuario = p.id_usuario
+       JOIN Usuario u ON prof.id_usuario = u.id_usuario
        JOIN Consultorio c ON a.id_consultorio = c.id_consultorio
        LEFT JOIN Atencion at ON t.id_turno = at.id_turno
        WHERE t.id_paciente = ? AND t.estado = 'atendido'
@@ -77,11 +77,11 @@ class Paciente {
     );
     
     const [emergencias] = await db.query(
-      `SELECT e.*, p.nombre as profesional_nombre, c.nombre as consultorio_nombre,
+      `SELECT e.*, u.nombre as profesional_nombre, prof.especialidad, c.nombre as consultorio_nombre,
               at.diagnostico, at.tratamiento, at.notas
        FROM Emergencia e
        LEFT JOIN Profesional prof ON e.id_profesional = prof.id_profesional
-       LEFT JOIN Usuario p ON prof.id_usuario = p.id_usuario
+       LEFT JOIN Usuario u ON prof.id_usuario = u.id_usuario
        LEFT JOIN Consultorio c ON e.id_consultorio = c.id_consultorio
        LEFT JOIN Atencion at ON e.id_emergencia = at.id_emergencia
        WHERE e.id_paciente = ?

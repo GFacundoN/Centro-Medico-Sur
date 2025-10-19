@@ -13,6 +13,13 @@ function Turnos() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showModal, setShowModal] = useState(false);
+  const [showAtencionModal, setShowAtencionModal] = useState(false);
+  const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
+  const [atencionData, setAtencionData] = useState({
+    diagnostico: '',
+    tratamiento: '',
+    notas: ''
+  });
   const [formData, setFormData] = useState({
     id_agenda: '',
     id_paciente: '',
@@ -28,11 +35,20 @@ function Turnos() {
 
   const loadData = async () => {
     try {
-      const [turnosData, agendasData, pacientesData] = await Promise.all([
-        turnoService.getAll(selectedDate),
+      let turnosData;
+      
+      // Si es profesional, solo cargar sus turnos
+      if (user?.rol === 'profesional' && user?.profesional?.id_profesional) {
+        turnosData = await turnoService.getByProfesional(user.profesional.id_profesional, selectedDate);
+      } else {
+        turnosData = await turnoService.getAll(selectedDate);
+      }
+      
+      const [agendasData, pacientesData] = await Promise.all([
         agendaService.getAll({ fecha: selectedDate }),
         pacienteService.getAll()
       ]);
+      
       setTurnos(turnosData);
       setAgendas(agendasData);
       setPacientes(pacientesData);
@@ -56,13 +72,47 @@ function Turnos() {
     }
   };
 
-  const handleEstadoChange = async (id, nuevoEstado) => {
+  const handleEstadoChange = async (id, nuevoEstado, turno) => {
+    // Si es profesional y marca como atendido desde confirmado, mostrar modal de atención
+    if (user?.rol === 'profesional' && nuevoEstado === 'atendido' && turno.estado === 'confirmado') {
+      setTurnoSeleccionado({ id, ...turno });
+      setShowAtencionModal(true);
+      return;
+    }
+
+    // Mensajes de confirmación según el estado
+    const confirmaciones = {
+      cancelado: '¿Está seguro de cancelar este turno?',
+      atendido: '¿Confirma que el turno ha sido atendido?'
+    };
+
+    // Si el estado requiere confirmación, mostrar diálogo
+    if (confirmaciones[nuevoEstado]) {
+      if (!window.confirm(confirmaciones[nuevoEstado])) {
+        return; // Cancelar el cambio
+      }
+    }
+
     try {
       await turnoService.updateEstado(id, nuevoEstado);
       loadData();
     } catch (error) {
       console.error('Error al actualizar estado:', error);
       alert('Error al actualizar estado');
+    }
+  };
+
+  const handleAtencionSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await turnoService.updateEstado(turnoSeleccionado.id, 'atendido', atencionData);
+      setShowAtencionModal(false);
+      setTurnoSeleccionado(null);
+      setAtencionData({ diagnostico: '', tratamiento: '', notas: '' });
+      loadData();
+    } catch (error) {
+      console.error('Error al registrar atención:', error);
+      alert('Error al registrar atención médica');
     }
   };
 
@@ -82,8 +132,7 @@ function Turnos() {
       reservado: 'bg-blue-100 text-blue-800',
       confirmado: 'bg-green-100 text-green-800',
       cancelado: 'bg-red-100 text-red-800',
-      atendido: 'bg-gray-100 text-gray-800',
-      'no-show': 'bg-yellow-100 text-yellow-800'
+      atendido: 'bg-gray-100 text-gray-800'
     };
     return colors[estado] || 'bg-gray-100 text-gray-800';
   };
@@ -191,15 +240,22 @@ function Turnos() {
                       {canEdit && turno.estado !== 'atendido' && turno.estado !== 'cancelado' && (
                         <select
                           value={turno.estado}
-                          onChange={(e) => handleEstadoChange(turno.id_turno, e.target.value)}
+                          onChange={(e) => handleEstadoChange(turno.id_turno, e.target.value, turno)}
                           className="text-sm border border-gray-300 rounded px-2 py-1"
                         >
                           <option value="reservado">Reservado</option>
                           <option value="confirmado">Confirmado</option>
                           <option value="cancelado">Cancelado</option>
                           <option value="atendido">Atendido</option>
-                          <option value="no-show">No Show</option>
                         </select>
+                      )}
+                      {user?.rol === 'profesional' && turno.estado === 'confirmado' && (
+                        <button
+                          onClick={() => handleEstadoChange(turno.id_turno, 'atendido', turno)}
+                          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                        >
+                          Atender
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -209,6 +265,76 @@ function Turnos() {
           </table>
         </div>
       </div>
+
+      {/* Modal Atención Médica */}
+      {showAtencionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Registrar Atención Médica</h3>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <strong>Paciente:</strong> {turnoSeleccionado?.paciente_nombre} {turnoSeleccionado?.paciente_apellido}
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>Fecha:</strong> {turnoSeleccionado?.fecha_hora && new Date(turnoSeleccionado.fecha_hora).toLocaleString('es-AR')}
+              </p>
+            </div>
+            <form onSubmit={handleAtencionSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Diagnóstico *</label>
+                <textarea
+                  value={atencionData.diagnostico}
+                  onChange={(e) => setAtencionData({ ...atencionData, diagnostico: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  rows="3"
+                  placeholder="Diagnóstico del paciente..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tratamiento *</label>
+                <textarea
+                  value={atencionData.tratamiento}
+                  onChange={(e) => setAtencionData({ ...atencionData, tratamiento: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  rows="3"
+                  placeholder="Tratamiento prescrito..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
+                <textarea
+                  value={atencionData.notas}
+                  onChange={(e) => setAtencionData({ ...atencionData, notas: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  rows="3"
+                  placeholder="Notas adicionales..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAtencionModal(false);
+                    setTurnoSeleccionado(null);
+                    setAtencionData({ diagnostico: '', tratamiento: '', notas: '' });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Registrar Atención
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (

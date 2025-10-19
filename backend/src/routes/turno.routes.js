@@ -17,6 +17,9 @@ router.get('/:id', turnoController.getById);
 // Get turnos by paciente
 router.get('/paciente/:pacienteId', turnoController.getByPaciente);
 
+// Get turnos by profesional
+router.get('/profesional/:profesionalId', turnoController.getByProfesional);
+
 // Get turnos disponibles de una agenda
 router.get('/disponibles/:agendaId', turnoController.getTurnosDisponibles);
 
@@ -33,7 +36,7 @@ router.put('/:id', authorize('recepcion', 'admin'), turnoController.update);
 
 // Update estado del turno
 router.patch('/:id/estado', authorize('recepcion', 'profesional', 'admin'), [
-  body('estado').isIn(['reservado', 'confirmado', 'cancelado', 'atendido', 'no-show']).withMessage('Estado inválido'),
+  body('estado').isIn(['reservado', 'confirmado', 'cancelado', 'atendido']).withMessage('Estado inválido'),
   validate
 ], turnoController.updateEstado);
 

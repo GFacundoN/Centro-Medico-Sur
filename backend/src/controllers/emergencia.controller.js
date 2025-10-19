@@ -35,6 +35,16 @@ exports.getById = async (req, res) => {
   }
 };
 
+exports.getByProfesional = async (req, res) => {
+  try {
+    const emergencias = await Emergencia.findByProfesional(req.params.profesionalId);
+    res.json(emergencias);
+  } catch (error) {
+    console.error('Error al obtener emergencias del profesional:', error);
+    res.status(500).json({ error: 'Error al obtener emergencias del profesional' });
+  }
+};
+
 exports.create = async (req, res) => {
   try {
     const { id_paciente, id_profesional, id_consultorio, motivo, estado } = req.body;

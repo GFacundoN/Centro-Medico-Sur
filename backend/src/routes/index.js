@@ -10,6 +10,8 @@ const emergenciaRoutes = require('./emergencia.routes');
 const listaEsperaRoutes = require('./listaEspera.routes');
 const consultorioRoutes = require('./consultorio.routes');
 const profesionalRoutes = require('./profesional.routes');
+const usuarioRoutes = require('./usuario.routes');
+const reporteRoutes = require('./reporte.routes');
 
 // API info endpoint
 router.get('/', (req, res) => {
@@ -24,7 +26,9 @@ router.get('/', (req, res) => {
       emergencias: '/api/emergencias',
       listaEspera: '/api/lista-espera',
       consultorios: '/api/consultorios',
-      profesionales: '/api/profesionales'
+      profesionales: '/api/profesionales',
+      usuarios: '/api/usuarios',
+      reportes: '/api/reportes'
     }
   });
 });
@@ -38,5 +42,7 @@ router.use('/emergencias', emergenciaRoutes);
 router.use('/lista-espera', listaEsperaRoutes);
 router.use('/consultorios', consultorioRoutes);
 router.use('/profesionales', profesionalRoutes);
+router.use('/usuarios', usuarioRoutes);
+router.use('/reportes', reporteRoutes);
 
 module.exports = router;

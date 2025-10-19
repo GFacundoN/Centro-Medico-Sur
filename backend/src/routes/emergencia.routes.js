@@ -14,11 +14,14 @@ router.get('/', emergenciaController.getAll);
 // Get emergencias activas
 router.get('/activas', emergenciaController.getActivas);
 
+// Get emergencias by profesional
+router.get('/profesional/:profesionalId', emergenciaController.getByProfesional);
+
 // Get emergencia by ID
 router.get('/:id', emergenciaController.getById);
 
-// Create emergencia
-router.post('/', authorize('recepcion', 'profesional', 'admin'), [
+// Create emergencia (solo recepcion y admin)
+router.post('/', authorize('recepcion', 'admin'), [
   body('id_paciente').notEmpty().withMessage('El paciente es requerido'),
   body('motivo').notEmpty().withMessage('El motivo es requerido'),
   validate

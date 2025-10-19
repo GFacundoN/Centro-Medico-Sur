@@ -7,6 +7,9 @@ import Pacientes from './pages/Pacientes'
 import Turnos from './pages/Turnos'
 import Emergencias from './pages/Emergencias'
 import ListaEspera from './pages/ListaEspera'
+import GestionAgendas from './pages/GestionAgendas'
+import GestionUsuarios from './pages/GestionUsuarios'
+import Reportes from './pages/Reportes'
 import './App.css'
 
 function PrivateRoute({ children }) {
@@ -30,6 +33,9 @@ function App() {
           <Route path="/turnos" element={<PrivateRoute><Layout><Turnos /></Layout></PrivateRoute>} />
           <Route path="/emergencias" element={<PrivateRoute><Layout><Emergencias /></Layout></PrivateRoute>} />
           <Route path="/lista-espera" element={<PrivateRoute><Layout><ListaEspera /></Layout></PrivateRoute>} />
+          <Route path="/gestion-agendas" element={<PrivateRoute><Layout><GestionAgendas /></Layout></PrivateRoute>} />
+          <Route path="/gestion-usuarios" element={<PrivateRoute><Layout><GestionUsuarios /></Layout></PrivateRoute>} />
+          <Route path="/reportes" element={<PrivateRoute><Layout><Reportes /></Layout></PrivateRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

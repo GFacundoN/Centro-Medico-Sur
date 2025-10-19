@@ -1,4 +1,4 @@
-import { Activity, Users, Calendar, AlertCircle, Clock, LogOut } from 'lucide-react'
+import { Activity, Users, Calendar, AlertCircle, Clock, LogOut, Settings, BarChart3, UserCog } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -15,9 +15,12 @@ function Layout({ children }) {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Activity, roles: ['recepcion', 'profesional', 'admin', 'director'] },
     { path: '/pacientes', label: 'Pacientes', icon: Users, roles: ['recepcion', 'admin'] },
-    { path: '/turnos', label: 'Turnos', icon: Calendar, roles: ['recepcion', 'admin'] },
+    { path: '/turnos', label: 'Turnos', icon: Calendar, roles: ['recepcion', 'profesional', 'admin'] },
     { path: '/emergencias', label: 'Emergencias', icon: AlertCircle, roles: ['recepcion', 'profesional', 'admin'] },
-    { path: '/lista-espera', label: 'Lista Espera', icon: Clock, roles: ['recepcion', 'admin'] }
+    { path: '/lista-espera', label: 'Lista Espera', icon: Clock, roles: ['recepcion', 'admin'] },
+    { path: '/gestion-agendas', label: 'Agendas', icon: Settings, roles: ['admin'] },
+    { path: '/gestion-usuarios', label: 'Usuarios', icon: UserCog, roles: ['admin'] },
+    { path: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'director'] }
   ];
 
   const visibleNavItems = navItems.filter(item => item.roles.includes(user?.rol));

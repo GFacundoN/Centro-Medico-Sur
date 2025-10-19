@@ -11,6 +11,11 @@ export const emergenciaService = {
     return response.data;
   },
 
+  getByProfesional: async (profesionalId) => {
+    const response = await api.get(`/api/emergencias/profesional/${profesionalId}`);
+    return response.data;
+  },
+
   getById: async (id) => {
     const response = await api.get(`/api/emergencias/${id}`);
     return response.data;

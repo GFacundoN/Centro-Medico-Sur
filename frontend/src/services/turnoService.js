@@ -17,6 +17,14 @@ export const turnoService = {
     return response.data;
   },
 
+  getByProfesional: async (profesionalId, fecha = null) => {
+    const url = fecha 
+      ? `/api/turnos/profesional/${profesionalId}?fecha=${fecha}` 
+      : `/api/turnos/profesional/${profesionalId}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
   getTurnosDisponibles: async (agendaId) => {
     const response = await api.get(`/api/turnos/disponibles/${agendaId}`);
     return response.data;
@@ -32,8 +40,14 @@ export const turnoService = {
     return response.data;
   },
 
-  updateEstado: async (id, estado) => {
-    const response = await api.patch(`/api/turnos/${id}/estado`, { estado });
+  updateEstado: async (id, estado, atencionData = null) => {
+    const payload = { estado };
+    if (atencionData) {
+      payload.diagnostico = atencionData.diagnostico;
+      payload.tratamiento = atencionData.tratamiento;
+      payload.notas = atencionData.notas;
+    }
+    const response = await api.patch(`/api/turnos/${id}/estado`, payload);
     return response.data;
   },
 
