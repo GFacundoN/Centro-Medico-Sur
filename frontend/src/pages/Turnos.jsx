@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Filter } from 'lucide-react';
+import { Calendar, Plus, Filter, Edit } from 'lucide-react';
 import { turnoService } from '../services/turnoService';
 import { agendaService } from '../services/agendaService';
 import { pacienteService } from '../services/pacienteService';
@@ -13,6 +13,8 @@ function Turnos() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTurnoId, setEditingTurnoId] = useState(null);
   const [showAtencionModal, setShowAtencionModal] = useState(false);
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null);
   const [atencionData, setAtencionData] = useState({
@@ -44,13 +46,9 @@ function Turnos() {
         turnosData = await turnoService.getAll(selectedDate);
       }
       
-      const [agendasData, pacientesData] = await Promise.all([
-        agendaService.getAll({ fecha: selectedDate }),
-        pacienteService.getAll()
-      ]);
+      const pacientesData = await pacienteService.getAll();
       
       setTurnos(turnosData);
-      setAgendas(agendasData);
       setPacientes(pacientesData);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -59,16 +57,30 @@ function Turnos() {
     }
   };
 
+  const loadAgendasDisponibles = async () => {
+    try {
+      // Cargar todas las agendas sin filtro de fecha
+      const agendasData = await agendaService.getAll();
+      setAgendas(agendasData);
+    } catch (error) {
+      console.error('Error al cargar agendas:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await turnoService.create(formData);
+      if (isEditing) {
+        await turnoService.update(editingTurnoId, formData);
+      } else {
+        await turnoService.create(formData);
+      }
       setShowModal(false);
       resetForm();
       loadData();
     } catch (error) {
-      console.error('Error al crear turno:', error);
-      alert(error.response?.data?.error || 'Error al crear turno');
+      console.error(isEditing ? 'Error al actualizar turno:' : 'Error al crear turno:', error);
+      alert(error.response?.data?.error || (isEditing ? 'Error al actualizar turno' : 'Error al crear turno'));
     }
   };
 
@@ -116,6 +128,27 @@ function Turnos() {
     }
   };
 
+  const handleEdit = async (turno) => {
+    setIsEditing(true);
+    setEditingTurnoId(turno.id_turno);
+    
+    // Cargar agendas disponibles
+    await loadAgendasDisponibles();
+    
+    // Pre-cargar datos del turno
+    const fechaHora = new Date(turno.fecha_hora).toISOString().slice(0, 16);
+    setFormData({
+      id_agenda: turno.id_agenda,
+      id_paciente: turno.id_paciente,
+      descripcion: turno.descripcion || '',
+      fecha_hora: fechaHora,
+      duracion_min: turno.duracion_min,
+      estado: turno.estado
+    });
+    
+    setShowModal(true);
+  };
+
   const resetForm = () => {
     setFormData({
       id_agenda: '',
@@ -125,6 +158,8 @@ function Turnos() {
       duracion_min: 30,
       estado: 'reservado'
     });
+    setIsEditing(false);
+    setEditingTurnoId(null);
   };
 
   const getEstadoColor = (estado) => {
@@ -153,7 +188,10 @@ function Turnos() {
           </div>
           {canEdit && (
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                loadAgendasDisponibles();
+                setShowModal(true);
+              }}
               className="flex items-center bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
@@ -237,26 +275,37 @@ function Turnos() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {canEdit && turno.estado !== 'atendido' && turno.estado !== 'cancelado' && (
-                        <select
-                          value={turno.estado}
-                          onChange={(e) => handleEstadoChange(turno.id_turno, e.target.value, turno)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        >
-                          <option value="reservado">Reservado</option>
-                          <option value="confirmado">Confirmado</option>
-                          <option value="cancelado">Cancelado</option>
-                          <option value="atendido">Atendido</option>
-                        </select>
-                      )}
-                      {user?.rol === 'profesional' && turno.estado === 'confirmado' && (
-                        <button
-                          onClick={() => handleEstadoChange(turno.id_turno, 'atendido', turno)}
-                          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                        >
-                          Atender
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {canEdit && turno.estado !== 'atendido' && turno.estado !== 'cancelado' && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(turno)}
+                              className="text-blue-600 hover:text-blue-800 p-1"
+                              title="Editar turno"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <select
+                              value={turno.estado}
+                              onChange={(e) => handleEstadoChange(turno.id_turno, e.target.value, turno)}
+                              className="text-sm border border-gray-300 rounded px-2 py-1"
+                            >
+                              <option value="reservado">Reservado</option>
+                              <option value="confirmado">Confirmado</option>
+                              <option value="cancelado">Cancelado</option>
+                              <option value="atendido">Atendido</option>
+                            </select>
+                          </>
+                        )}
+                        {user?.rol === 'profesional' && turno.estado === 'confirmado' && (
+                          <button
+                            onClick={() => handleEstadoChange(turno.id_turno, 'atendido', turno)}
+                            className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                          >
+                            Atender
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -340,7 +389,7 @@ function Turnos() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Nuevo Turno</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">{isEditing ? 'Editar Turno' : 'Nuevo Turno'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -352,11 +401,15 @@ function Turnos() {
                     required
                   >
                     <option value="">Seleccionar agenda</option>
-                    {agendas.map((agenda) => (
-                      <option key={agenda.id_agenda} value={agenda.id_agenda}>
-                        {agenda.profesional_nombre} - {agenda.especialidad} ({agenda.hora_inicio} - {agenda.hora_fin})
-                      </option>
-                    ))}
+                    {agendas.length === 0 ? (
+                      <option disabled>No hay agendas disponibles</option>
+                    ) : (
+                      agendas.map((agenda) => (
+                        <option key={agenda.id_agenda} value={agenda.id_agenda}>
+                          {new Date(agenda.fecha).toLocaleDateString('es-AR')} - {agenda.profesional_nombre} - {agenda.especialidad} ({agenda.hora_inicio?.slice(0,5)} - {agenda.hora_fin?.slice(0,5)})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
@@ -421,7 +474,7 @@ function Turnos() {
                   type="submit"
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
                 >
-                  Crear Turno
+                  {isEditing ? 'Actualizar Turno' : 'Crear Turno'}
                 </button>
               </div>
             </form>
